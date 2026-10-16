@@ -460,15 +460,33 @@ def _links_from_urdf(urdf: URDF) -> Any:
         except AttributeError:
             pass
 
-        try:
-            if joint.dynamics.friction is not None:
-                childlink.B = joint.dynamics.friction
-        except AttributeError:
-            pass
+        if childlink.isjoint:
+            # URDF dynamics are joint-side quantities; Link stores motor-side
+            # coefficients and reflects them through G in friction().
+            childlink.G = 1.0
+            for transmission in urdf.transmissions:
+                if (
+                    len(transmission.joints) == 1
+                    and len(transmission.actuators) == 1
+                    and transmission.joints[0].name == joint.name
+                ):
+                    reduction = transmission.actuators[0].mechanicalReduction
+                    if reduction is not None:
+                        reduction = float(reduction)
+                        if not np.isfinite(reduction) or reduction == 0:
+                            raise URDFError(
+                                "mechanicalReduction must be finite and non-zero",
+                                stage="urdf",
+                                element=f'<transmission name="{transmission.name}">',
+                            )
+                        childlink.G = reduction
+                    break
 
-        for t in urdf.transmissions:
-            if t.name == joint.name:
-                childlink.G = t.actuators[0].mechanicalReduction
+            if joint.dynamics is not None:
+                if joint.dynamics.damping is not None:
+                    childlink.B = joint.dynamics.damping / childlink.G**2
+                if joint.dynamics.friction is not None:
+                    childlink.Tc = joint.dynamics.friction / abs(childlink.G)
 
     return elinks, urdf.name
 
