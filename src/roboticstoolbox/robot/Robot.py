@@ -2107,10 +2107,9 @@ class Robot2(BaseRobot[Link2]):
         else:  # pragma nocover
             raise TypeError("constructor argument must be ETS2 or list of Link2")
 
+        base = kwargs.pop("base", None)
         super().__init__(links, **kwargs)
-
-        # Should just set it to None
-        self.base = SE2()  # override superclass
+        self.base = SE2() if base is None else base
 
     @property
     def base(self) -> SE2:
@@ -2141,7 +2140,7 @@ class Robot2(BaseRobot[Link2]):
         if isinstance(T, SE2):
             self._base = T
         elif SE2.isvalid(T):  # pragma nocover
-            self._tool = SE2(T, check=True)
+            self._base = SE2(T, check=True)
 
     def jacob0(self, q: Any, start: Any = None, end: Any = None) -> Any:
         return self.ets(start, end).jacob0(q)
@@ -2150,7 +2149,7 @@ class Robot2(BaseRobot[Link2]):
         return self.ets(start, end).jacobe(q)
 
     def fkine(self, q: Any, end: Any = None, start: Any = None) -> Any:
-        return self.ets(start, end).fkine(q)
+        return self.ets(start, end).fkine(q, base=self.base)
 
     @property
     def reach(self) -> float:
