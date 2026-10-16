@@ -1254,6 +1254,8 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
             if not supplied will use the stored q values).
         :param J: The manipulator Jacobian in any frame
         :param H: The manipulator Hessian in any frame
+            with shape ``(n, 6, n)``, where ``n`` is the number of joints
+            on the selected path, matching :meth:`hessian0`.
         :param end: the final link or Gripper which the Hessian represents
         :param start: the first link which the Hessian represents
         :returns: The manipulability Jacobian
@@ -1304,18 +1306,16 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
 
             J = self.jacob0(q, start=start, end=end)
         else:
-            verifymatrix(J, (6, self.n))
+            verifymatrix(J, (6, self.ets(start, end).n))
 
         n = J.shape[1]
 
         if H is None:
             H = self.hessian0(J0=J, start=start, end=end)
-        # else:
-        #     verifymatrix(H, (6, self.n, self.n))
         elif not isinstance(H, np.ndarray):
-            raise TypeError("Hessian must be numpy array of shape 6xnxn")
-        elif H.shape != (6, self.n, self.n):
-            raise ValueError("Hessian must be numpy array of shape 6xnxn")
+            raise TypeError("Hessian must be numpy array of shape (n, 6, n)")
+        elif H.shape != (n, 6, n):
+            raise ValueError("Hessian must be numpy array of shape (n, 6, n)")
 
         manipulability = self.manipulability(
             q,
