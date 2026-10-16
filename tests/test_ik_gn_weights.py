@@ -6,11 +6,14 @@ import pytest
 from spatialmath import SE3
 
 import roboticstoolbox as rtb
+from roboticstoolbox.ets.ETS import ETS
 
 
 @pytest.mark.parametrize("pinv", [False, True])
 @pytest.mark.parametrize("weights", [[9, 1, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0]])
-def test_underactuated_gn_step_minimises_weighted_pose_error(pinv, weights):
+def test_underactuated_gn_step_minimises_weighted_pose_error(
+    pinv: bool, weights: list[float]
+) -> None:
     angle = 0.4
     ets = rtb.ET.Rz(angle) * rtb.ET.tx(qlim=[-5, 5])
     q = np.array([0.0])
@@ -32,7 +35,7 @@ def test_underactuated_gn_step_minimises_weighted_pose_error(pinv, weights):
 
 
 @pytest.mark.parametrize("pinv", [False, True])
-def test_gn_solves_only_the_selected_cartesian_coordinate(pinv):
+def test_gn_solves_only_the_selected_cartesian_coordinate(pinv: bool) -> None:
     ets = rtb.ET.Rz(0.4) * rtb.ET.tx(qlim=[-5, 5])
     target = SE3(0.3, -0.2, 0) * SE3.Rz(0.4)
     solver = rtb.IK_GN(
@@ -46,8 +49,8 @@ def test_gn_solves_only_the_selected_cartesian_coordinate(pinv):
     assert result.iterations == 1
 
 
-def test_masked_gn_nullspace_preserves_selected_task():
-    ets = rtb.ETS(
+def test_masked_gn_nullspace_preserves_selected_task() -> None:
+    ets = ETS(
         [
             rtb.ET.tx(qlim=[-1, 1]),
             rtb.ET.ty(qlim=[-1, 1]),
