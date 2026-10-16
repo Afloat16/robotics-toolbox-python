@@ -982,7 +982,8 @@ class EKF:
             #  compute x_est and P_est
 
             # compute innovation covariance
-            S = Hx @ P_pred @ Hx.T + Hw @ self._W_est @ Hw.T
+            R = Hw @ self._W_est @ Hw.T
+            S = Hx @ P_pred @ Hx.T + R
 
             # compute the Kalman gain
             K = P_pred @ Hx.T @ np.linalg.inv(S)
@@ -998,7 +999,7 @@ class EKF:
             if self._joseph:
                 #  we use the Joseph form
                 I = np.eye(P_pred.shape[0])
-                P_est = (I - K @ Hx) @ P_pred @ (I - K @ Hx).T + K @ self._W_est @ K.T
+                P_est = (I - K @ Hx) @ P_pred @ (I - K @ Hx).T + K @ R @ K.T
             else:
                 P_est = P_pred - K @ S @ K.T
                 # enforce P to be symmetric
