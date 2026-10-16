@@ -687,26 +687,40 @@ class DynamicsMixin:
         effects of Coulomb friction when operating at joint velocity QD
         (1xN).
 
+        The denominator is referred to the motor shaft. The joint inertia
+        includes the reflected motor inertia exactly once. At a nonzero
+        operating velocity, Coulomb friction is represented by an equivalent
+        viscous coefficient giving the same resisting torque; at zero velocity
+        it contributes no damping, consistently with :meth:`Link.friction`.
+
         """
 
-        tf = []
-        for j, link in enumerate(self.links):
+        q = getvector(q, self.n)
+        if qd is not None:
+            qd = getvector(qd, self.n)
+
+        tf: list[Any] = [None] * self.n
+        for link in self.links:
+            if not link.isjoint:
+                continue
+            j = link.jindex
             # compute inertia for this joint
-            zero = np.zeros((self.n))
-            qdd = np.zeros((self.n))
+            zero = np.zeros(self.n)
+            qdd = np.zeros(self.n)
             qdd[j] = 1
             M = self.rne(q, zero, qdd, gravity=[0, 0, 0])
-            J = link.Jm + M[j] / abs(link.G) ** 2
+            # RNE already includes the reflected motor inertia G**2 * Jm.
+            J = M[j] / abs(link.G) ** 2
 
             # compute friction
             B = link.B
             if qd is not None:
                 # add linearized Coulomb friction at the operating point
-                if qd > 0:
-                    B += link.Tc[0] / qd[j]
-                elif qd < 0:
-                    B += link.Tc[1] / qd[j]
-            tf.append(((1,), (J, B)))
+                if qd[j] > 0:
+                    B += link.Tc[0] / (abs(link.G) * qd[j])
+                elif qd[j] < 0:
+                    B += link.Tc[1] / (abs(link.G) * qd[j])
+            tf[j] = ((1,), (J, B))
 
         return tf
 

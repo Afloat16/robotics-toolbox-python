@@ -515,12 +515,12 @@ class TestDHRobot(unittest.TestCase):
         puma = rp.models.DH.Puma560()
         jd = puma.jointdynamics(puma.qn)
         print(jd[0])
-        # numbers come from MATLAB
-        nt.assert_array_almost_equal(jd[0][1], [0.001133478453251, 0.001480000000000])
+        # Motor-referred inertia includes Jm once (RNE already includes it).
+        nt.assert_array_almost_equal(jd[0][1], [0.000933478453251, 0.001480000000000])
         nt.assert_array_almost_equal(
-            jd[1][1], [0.579706964030143e-3, 0.817000000000000e-3]
+            jd[1][1], [0.379706964030143e-3, 0.817000000000000e-3]
         )
-        nt.assert_array_almost_equal(jd[2][1], [0.000525146448377, 0.001380000000000])
+        nt.assert_array_almost_equal(jd[2][1], [0.000325146448377, 0.001380000000000])
 
     def test_twists(self):
         # TODO
