@@ -76,6 +76,7 @@ static void rot_mat(Link *l, double th, double d, DHType type) {
 
 NB_MODULE(_frne_c, m) {
     m.doc() = "Fast Newton-Euler inverse dynamics (nanobind port)";
+    m.attr("_ABI_VERSION") = 1;
 
     nb::class_<RobotObj>(m, "_RobotObj")
         .def("__repr__", [](const RobotObj &) { return "<RobotObj>"; });

@@ -12,6 +12,13 @@ from __future__ import annotations
 from typing import Any
 
 try:
+    # Version 1 includes each joint's signed direction in the packed link
+    # data. An older binary would otherwise silently read the wrong stride.
+    from roboticstoolbox._frne_c import _ABI_VERSION
+
+    if _ABI_VERSION != 1:
+        raise ImportError("incompatible inverse-dynamics extension ABI")
+
     from roboticstoolbox._frne_c import (
         delete as _c_delete,
     )
