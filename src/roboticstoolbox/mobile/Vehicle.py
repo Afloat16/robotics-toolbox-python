@@ -789,7 +789,8 @@ class VehicleBase(ABC):
         r"""
         Step simulator by one time step (superclass)
 
-        :return: odometry :math:`(\delta_d, \delta_\theta)`
+        :return: signed forward travel and heading change
+            :math:`(\delta_d, \delta_\theta)`
         :rtype: ndarray(2)
 
         #. Obtain the vehicle control inputs
@@ -828,14 +829,15 @@ class VehicleBase(ABC):
         # update state
         xd = self._dt * self.deriv(self._x, u)  # delta state
 
+        # Signed travel along the vehicle's heading before the integration step.
+        # A distance norm loses the direction of reverse motion.
+        odo = np.r_[xd[0] * cos(self._x[2]) + xd[1] * sin(self._x[2]), xd[2]]
+
         # update state vector
         self._x += xd
         self._x_hist.append(tuple(self._x))
 
         # print('VEH', u, self.x)
-
-        # odometry comes from change in state vector
-        odo = np.r_[np.linalg.norm(xd[0:2]), xd[2]]
 
         if self._V is not None:
             odo += self.random.multivariate_normal((0, 0), self._V)
