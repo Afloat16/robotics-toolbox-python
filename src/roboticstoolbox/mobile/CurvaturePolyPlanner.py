@@ -26,23 +26,19 @@ def solvepath(
         total path length
     :param q0: initial configuration :math:`(x, y, \\theta)`, defaults to (0, 0, 0)
     :param kwargs: options passed to :func:`scipy.integrate.solve_ivp`
-    :return: path, one configuration per column, and the maximum curvature
+    :return: path, one configuration per column, and the maximum absolute
+        curvature over the full arc-length interval
     :rtype: ndarray(3,N), float
     """
+
     # x[:4] is 4 coeffs of curvature polynomial
     # x[4] is total path length
     # q0 is initial state of the vehicle
-    maxcurvature = 0
-
     def dotfunc(s: float, q: ArrayLike, poly: ArrayLike) -> tuple[float, float, float]:
         # q = (x, y, θ)
         # qdot = (cosθ, sinθ, ϰ)
         k = poly[0] * s**3 + poly[1] * s**2 + poly[2] * s + poly[3]
         # k = ((poly[0] * s + poly[1]) * s  + poly[2]) * s + poly[3]
-
-        # save maximum curvature for this path solution
-        nonlocal maxcurvature
-        maxcurvature = max(maxcurvature, abs(k))
 
         theta = q[2]
         return math.cos(theta), math.sin(theta), k
@@ -50,15 +46,31 @@ def solvepath(
     cpoly = x[:4]
     s_f = x[4]
     sol = scipy.integrate.solve_ivp(dotfunc, [0, s_f], q0, args=(cpoly,), **kwargs)
-    return sol.y, maxcurvature
+    return sol.y, xcurvature(x)
 
 
 def xcurvature(x: ArrayLike) -> float:
     """
-    Maximum curvature of the path, the inequality constraint of the optimization
+    Maximum absolute curvature over the complete path interval
+
+    :param x: the four curvature coefficients followed by the path length
+    :return: maximum absolute curvature, including interior stationary points
+
+    This is the inequality constraint of the optimization. The extrema of the
+    cubic curvature occur at the endpoints or roots of its quadratic derivative,
+    independently of the ODE solver's adaptive integration samples.
     """
-    _, maxcurvature = solvepath(x, q0=(0, 0, 0))
-    return maxcurvature
+    coefficients = np.asarray(x[:4], dtype=float)
+    length = x[4]
+    # Normalize arc length to [0, 1] to keep the root interval independent of
+    # the units and scale of the path length, including a zero-length path.
+    polynomial = coefficients * np.array([length**3, length**2, length, 1])
+    roots = np.roots([3 * polynomial[0], 2 * polynomial[1], polynomial[2]])
+    points = [0.0, 1.0]
+    points.extend(
+        float(root.real) for root in roots if np.isreal(root) and 0 < root.real < 1
+    )
+    return float(np.max(np.abs(np.polyval(polynomial, points))))
 
 
 def costfunc(x: ArrayLike, start: ArrayLike3, goal: ArrayLike3) -> float:
