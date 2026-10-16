@@ -8,7 +8,8 @@ import pytest
 from spatialmath import SE3
 from spatialmath.base import vex
 
-from roboticstoolbox import ET, ETS
+from roboticstoolbox.ets.ET import ET
+from roboticstoolbox.ets.ETS import ETS
 from roboticstoolbox.tools.types import NDArray
 
 fknm = importlib.import_module("roboticstoolbox.ets.fknm")
