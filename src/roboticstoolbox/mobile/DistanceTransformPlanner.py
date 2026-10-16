@@ -225,8 +225,9 @@ class DistanceTransformPlanner(PlannerBase):
         :return: path from start to goal, one point :math:`(x, y)` per row
         :rtype: ndarray(N,2)
 
-        Repeatedly steps to the neighbouring cell with the lowest distance
-        until the goal is reached.
+        Repeatedly steps along a minimum-cost edge of the distance map until
+        the goal is reached, using four neighbours for Manhattan distance or
+        eight neighbours for Euclidean distance.
 
         .. deprecated:: 1.4.5
             ``next`` was accepted but had no effect.
@@ -325,18 +326,30 @@ class DistanceTransformPlanner(PlannerBase):
 
         distancemap = self.distancemap
         rows, columns = distancemap.shape
-        min_dist = distancemap[y, x]
+        current_dist = distancemap[y, x]
+        min_cost = np.inf
         min_dir = None
         for d in directions:
+            if self.metric.lower() != "euclidean" and np.count_nonzero(d) == 2:
+                continue
             r = y + d[0]
             c = x + d[1]
             # a neighbouring cell outside the map is not a candidate, note that
             # a negative index would wrap around to the far side of the map
-            if 0 <= r < rows and 0 <= c < columns and distancemap[r, c] < min_dist:
-                min_dir = d
-                min_dist = distancemap[r, c]
+            if 0 <= r < rows and 0 <= c < columns:
+                remaining = distancemap[r, c]
+                cost = remaining / self.occgrid.cellsize + np.linalg.norm(d)
+                # Preserve the neighbour order for equal-cost routes despite
+                # roundoff when the distance field is scaled into world units.
+                if (
+                    remaining < current_dist
+                    and cost < min_cost
+                    and not np.isclose(cost, min_cost, rtol=1e-12, atol=0)
+                ):
+                    min_dir = d
+                    min_cost = cost
 
-        if min_dir is None or np.isinf(min_dist):
+        if min_dir is None or np.isinf(min_cost):
             raise NoPathError("the goal is not reachable from this position")
 
         x = x + min_dir[1]

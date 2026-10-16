@@ -3,9 +3,7 @@ Tests of the planner base class contract: what PlannerBase declares and how a
 planner's start and goal are validated.
 """
 
-import hashlib
 import unittest
-import warnings
 
 import matplotlib
 
@@ -133,23 +131,24 @@ class TestDistanceTransformQuery(unittest.TestCase):
     def tearDown(self):
         plt.close("all")
 
-    @staticmethod
-    def sha(path):
-        return hashlib.sha1(np.ascontiguousarray(path).tobytes()).hexdigest()[:12]
-
-    def test_book_paths_are_unchanged(self):
+    def test_book_paths_follow_the_metric_and_distance_field(self):
         for metric in ("euclidean", "manhattan"):
             dx = DistanceTransformPlanner(occgrid=self.floorplan, metric=metric)
             dx.plan(self.places.kitchen)
-            with self.subTest(metric=metric, start="br3"):
-                p = dx.query(self.places.br3)
-                self.assertEqual(p.shape, (338, 2))
-                self.assertEqual(self.sha(p), "a20babd0e3e0")
-                self.assertEqual(p.dtype, np.int64)
-            with self.subTest(metric=metric, start="br2"):
-                p = dx.query(self.places.br2)
-                self.assertEqual(p.shape, (268, 2))
-                self.assertEqual(self.sha(p), "6910b68a0494")
+            for name in ("br3", "br2"):
+                with self.subTest(metric=metric, start=name):
+                    start = getattr(self.places, name)
+                    p = dx.query(start)
+                    nt.assert_array_equal(p[0], start)
+                    nt.assert_array_equal(p[-1], self.places.kitchen)
+                    self.assertEqual(p.dtype, np.int64)
+                    steps = np.abs(np.diff(p, axis=0))
+                    self.assertTrue(np.all(steps <= 1))
+                    if metric == "manhattan":
+                        nt.assert_array_equal(steps.sum(axis=1), 1)
+                    self.assertFalse(np.any(self.floorplan[p[:, 1], p[:, 0]]))
+                    distance = np.linalg.norm(steps, axis=1).sum()
+                    self.assertAlmostEqual(distance, dx.distancemap[start[1], start[0]])
 
     def test_small_example(self):
         # the example in the class docstring
@@ -159,7 +158,8 @@ class TestDistanceTransformQuery(unittest.TestCase):
         dx.plan()
         path = dx.query(start=(5, 4))
         self.assertEqual(
-            path.tolist(), [[5, 4], [5, 3], [5, 2], [4, 1], [3, 1], [2, 1], [1, 1]]
+            path.tolist(),
+            [[5, 4], [5, 3], [5, 2], [5, 1], [4, 1], [3, 1], [2, 1], [1, 1]],
         )
 
     def test_dtype(self):
