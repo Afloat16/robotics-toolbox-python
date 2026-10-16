@@ -135,8 +135,9 @@ class LatticePlanner(PlannerBase):
     If an occupancy grid exists and the configuration is an obstacle, then
     the vertex is not added.
 
-    The path through the lattice is found using A* graph search, and ``costs``
-    changes the weighting for path costs at query time.
+    The path through the lattice is found using uniform-cost graph search,
+    so the specified move ``costs`` determine the minimum-cost path without
+    requiring a geometric lower bound on those costs.
 
     Example:
 
@@ -316,7 +317,7 @@ class LatticePlanner(PlannerBase):
             raise ValueError("goal configuration is not in the lattice")
 
         try:
-            path, cost, _ = self.graph.path_Astar(vs, vg, verbose=False)
+            path, cost, _ = self.graph.path_UCS(vs, vg, verbose=False)
         except TypeError:
             raise NoPathError("no path found through the lattice") from None
 
