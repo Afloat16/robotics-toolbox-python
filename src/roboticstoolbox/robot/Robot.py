@@ -1887,17 +1887,20 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
             # I_int with the wrong moment arm relative to this joint
             # (effectively r=0), which for a non-negligible offset silently
             # drops its contribution to this joint's torque (#636, #483).
-            past_joint = False
-            T_from_joint = None
+            joint = self.links[group[0]]
             for idx in group:
                 link = self.links[idx]
 
-                if past_joint:
-                    T_from_joint = (
-                        SE3(link.A())
-                        if T_from_joint is None
-                        else T_from_joint * SE3(link.A())
-                    )
+                if link is not joint:
+                    # Follow this body's ancestry. Flattened traversal order
+                    # can put a sibling immediately before it, and that
+                    # sibling's transform must not enter this body's inertia.
+                    T_from_joint = SE3(link.A())
+                    parent = link.parent
+                    while parent is not joint:
+                        assert parent is not None
+                        T_from_joint = SE3(parent.A()) * T_from_joint
+                        parent = parent.parent
                     r = T_from_joint.R @ np.asarray(link.r) + T_from_joint.t
                     Ir = T_from_joint.R @ link.I @ T_from_joint.R.T
                     I_int = I_int + SpatialInertia(m=link.m, r=r, I=Ir)
@@ -1906,7 +1909,6 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
 
                 if link.v is not None:
                     s.append(link.v.s)  # type: ignore[attr-defined]  # ET, not ET2
-                    past_joint = True
 
             I[i] = I_int
 
@@ -1953,12 +1955,15 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
 
                 vJ = SpatialVelocity(s[j] * qdk[jindex])
 
-                # transform from parent(j) to j: joint.A() already
-                # incorporates any fixed transform within the joint link's
-                # own ETS (the joint variable is guaranteed to be the last
-                # element of its segment -- see this method's docstring),
-                # so no further composition is needed.
+                # Include fixed links between this joint and its nearest
+                # joint ancestor (or the robot base). Their inertias were
+                # folded above, but their geometry still carries the parent's
+                # velocity, acceleration and transmitted wrench to this joint.
                 Xup_int = SE3(joint.A(qk[jindex]))  # type: ignore[arg-type]
+                parent = joint.parent
+                while parent is not None and not parent.isjoint:
+                    Xup_int = SE3(parent.A()) * Xup_int
+                    parent = parent.parent
                 Xup[j] = Xup_int.inv()
 
                 # group_of_link_idx also covers a joint whose immediate
