@@ -1992,15 +1992,17 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
                 group = link_groups[j]
                 joint = self.links[group[0]]  # always the joint -- see above
 
+                # The recursion uses topological group order, while the public
+                # state and effort vectors use each joint's explicit index.
+                jindex = joint.jindex
                 # next line could be dot(), but fails for symbolic arguments
-                Q[k, j] = sum(f[j].A * s[j])
+                Q[k, jindex] = sum(f[j].A * s[j])
 
                 # add armature inertia and friction -- consistent with
                 # DHRobot.rne_python()/ne.c, which both add G^2*Jm*qdd
                 # (armature) and subtract link.friction() (viscous B +
                 # Coulomb Tc).
-                jindex = joint.jindex
-                Q[k, j] += (
+                Q[k, jindex] += (
                     joint.G**2 * joint.Jm * qddk[jindex]
                     - joint.friction(
                         qdk[jindex], coulomb=not symbolic  # type: ignore[arg-type]
