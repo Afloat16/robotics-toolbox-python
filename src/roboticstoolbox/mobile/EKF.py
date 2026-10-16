@@ -1067,6 +1067,9 @@ class EKF:
 
         # get the Jacobian for the new landmark
         Gz = self.sensor.Gz(xv, z)
+        # Linearise noise in observation coordinates at the inferred landmark.
+        Hw = self.sensor.Hw(xv, xf)
+        R = Hw @ self._W_est @ Hw.T
 
         # extend the covariance matrix
         n = len(self._x_est)
@@ -1088,7 +1091,7 @@ class EKF:
                 [np.zeros((2, n)), Gz]
             ])
             # fmt: on
-        P_ext = Yz @ block_diag(P, self._W_est) @ Yz.T
+        P_ext = Yz @ block_diag(P, R) @ Yz.T
 
         return x_ext, P_ext
 
