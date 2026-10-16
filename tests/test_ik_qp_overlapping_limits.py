@@ -6,6 +6,7 @@ import pytest
 from spatialmath import SE3
 
 import roboticstoolbox as rtb
+from roboticstoolbox.ets.ETS import ETS
 from tests import skip_no_qp
 
 
@@ -13,8 +14,10 @@ from tests import skip_no_qp
 @pytest.mark.parametrize("influence", [0.1, 0.3, 1.0])
 @pytest.mark.parametrize("gain", [0.5, 2.0])
 @pytest.mark.parametrize("direction", [-1, 1])
-def test_qp_preserves_both_overlapping_limit_inequalities(influence, gain, direction):
-    ets = rtb.ETS(rtb.ET.tx(qlim=[-0.05, 0.05]))
+def test_qp_preserves_both_overlapping_limit_inequalities(
+    influence: float, gain: float, direction: int
+) -> None:
+    ets = ETS(rtb.ET.tx(qlim=[-0.05, 0.05]))
     initial = direction * 0.04
     q = np.array([initial])
     displacement = direction * 0.5
@@ -34,8 +37,8 @@ def test_qp_preserves_both_overlapping_limit_inequalities(influence, gain, direc
 
 
 @skip_no_qp
-def test_two_sided_dampers_keep_heterogeneous_joints_independent():
-    ets = rtb.ETS(
+def test_two_sided_dampers_keep_heterogeneous_joints_independent() -> None:
+    ets = ETS(
         [
             rtb.ET.tx(qlim=[-0.05, 0.05]),
             rtb.ET.ty(qlim=[-2.0, 2.0]),
