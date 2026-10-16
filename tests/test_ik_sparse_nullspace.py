@@ -1,20 +1,26 @@
 """Joint-limit avoidance must use the same active coordinates as FK."""
 
+from typing import Any
+
 import numpy as np
 import numpy.testing as nt
 import pytest
 
 import roboticstoolbox as rtb
+from roboticstoolbox.ets.ETS import ETS
 from roboticstoolbox.robot.IK import _null_Σ
+from roboticstoolbox.tools.types import NDArray
 
 
-def chain(indices: list[int]) -> rtb.ETS:
-    return rtb.ETS([rtb.ET.tx(jindex=index, qlim=[-1, 1]) for index in indices])
+def chain(indices: list[int]) -> ETS:
+    return ETS([rtb.ET.tx(jindex=index, qlim=[-1, 1]) for index in indices])
 
 
 @pytest.mark.parametrize("indices", [[0, 1], [2, 5], [5, 2]])
 @pytest.mark.parametrize("influence", [0.4, np.array([0.4, 0.5])])
-def test_limit_gradient_reads_active_joint_coordinates(indices, influence):
+def test_limit_gradient_reads_active_joint_coordinates(
+    indices: list[int], influence: float | NDArray
+) -> None:
     ets = chain(indices)
     q = np.full(max(indices) + 1, 0.23)
     q[indices] = [0.9, 0.0]
@@ -32,7 +38,9 @@ def test_limit_gradient_reads_active_joint_coordinates(indices, influence):
         (rtb.IK_LM, {"method": "wampler", "k": 0.1}),
     ],
 )
-def test_sparse_step_redistributes_motion_away_from_limit(solver_type, options):
+def test_sparse_step_redistributes_motion_away_from_limit(
+    solver_type: type[rtb.IK_NR | rtb.IK_GN | rtb.IK_LM], options: dict[str, Any]
+) -> None:
     indices = [2, 5]
     ets = chain(indices)
     q = np.full(6, 0.23)
