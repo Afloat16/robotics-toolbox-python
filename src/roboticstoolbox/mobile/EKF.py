@@ -60,7 +60,8 @@ class EKF:
         :type robot: 2-tuple
         :param sensor: vehicle mounted sensor model, defaults to None
         :type sensor: 2-tuple, optional
-        :param map: landmark map, defaults to None
+        :param map: known landmark map used to predict localisation observations,
+            independently of the sensor's true map, defaults to None
         :type map: :class:`LandmarkMap`, optional
         :param P0: initial covariance matrix, defaults to None
         :type P0: ndarray(n,n), optional
@@ -897,8 +898,10 @@ class EKF:
             assert self.sensor is not None and z is not None and lm_id is not None
             #  here for MBL, MM, SLAM
 
-            # compute the innovation
-            z_pred = self.sensor.h(xv_pred, lm_id)
+            # Localisation predicts from the supplied known map, not from the
+            # sensor's ground-truth world used to generate the observation.
+            landmark = lm_id if self.map is None else self.map[lm_id]
+            z_pred = self.sensor.h(xv_pred, landmark)
             innov = np.array([z[0] - z_pred[0], base.wrap_mpi_pi(z[1] - z_pred[1])])
 
             if self._est_ekf_map:
@@ -960,8 +963,8 @@ class EKF:
 
             else:
                 # LBL
-                Hx = self.sensor.Hx(xv_pred, lm_id)
-                Hw = self.sensor.Hw(xv_pred, lm_id)
+                Hx = self.sensor.Hx(xv_pred, landmark)
+                Hw = self.sensor.Hw(xv_pred, landmark)
                 doUpdatePhase = True
         else:
             innov = None
