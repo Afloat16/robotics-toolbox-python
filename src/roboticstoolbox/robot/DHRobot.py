@@ -1354,10 +1354,10 @@ class DHRobot(Robot):
 
     def _copy_to_cpp(self) -> None:
         # Compress link data into a 1D array
-        L = np.zeros(24 * self.n)
+        L = np.zeros(25 * self.n)
 
         for i in range(self.n):
-            j = i * 24
+            j = i * 25
             L[j] = self.links[i].alpha
             L[j + 1] = self.links[i].a
             L[j + 2] = self.links[i].theta
@@ -1371,6 +1371,7 @@ class DHRobot(Robot):
             L[j + 20] = self.links[i].G
             L[j + 21] = self.links[i].B
             L[j + 22 : j + 24] = self.links[i].Tc.flatten()
+            L[j + 24] = -1 if self.links[i].isflip else 1
 
         if self._frne is not None:
             delete(self._frne)
@@ -1428,6 +1429,9 @@ class DHRobot(Robot):
         .. note::
             - The torque computed contains a contribution due to armature
               inertia and joint friction.
+            - Joint flips apply to physical motion and the corresponding
+              generalized effort. Armature inertia and friction retain their
+              definitions in the supplied joint coordinates.
             - If a model has no dynamic parameters set the result is zero.
 
         :seealso: :func:`rne_python`
@@ -1588,6 +1592,7 @@ class DHRobot(Robot):
             return x
 
         n = self.n
+        direction = np.array([-1 if link.isflip else 1 for link in self.links])
 
         # dtype must reflect this *call's* symbolic-ness, not just the
         # model's: self.symbolic is a construction-time flag over the link
@@ -1650,6 +1655,8 @@ class DHRobot(Robot):
             q_k = q[k, :]
             qd_k = qd[k, :]
             qdd_k = qdd[k, :]
+            qd_physical = direction * qd_k
+            qdd_physical = direction * qdd_k
 
             if debug:
                 print("q_k", q_k)
@@ -1697,7 +1704,7 @@ class DHRobot(Robot):
                 else:
                     # prismatic
                     Tj = link.A(q_k[j]).A
-                    d = q_k[j] + link.offset
+                    d = direction[j] * q_k[j] + link.offset
 
                 # compute pstar:
                 #   O_{j-1} to O_j in {j}, negative inverse of link xform
@@ -1731,8 +1738,12 @@ class DHRobot(Robot):
                 if self.mdh:
                     if link.isrevolute:
                         # revolute axis
-                        w_ = Rt @ w + z0 * qd_k[j]
-                        wd_ = Rt @ wd + z0 * qdd_k[j] + _cross(Rt @ w, z0 * qd_k[j])
+                        w_ = Rt @ w + z0 * qd_physical[j]
+                        wd_ = (
+                            Rt @ wd
+                            + z0 * qdd_physical[j]
+                            + _cross(Rt @ w, z0 * qd_physical[j])
+                        )
                         # Rt must distribute over the whole bracket, not just
                         # the first term -- matches ne.c's MODIFIED-DH branch,
                         # which does rot_trans_vect_mult() (= Rt @ ...) on the
@@ -1747,8 +1758,8 @@ class DHRobot(Robot):
                         wd_ = Rt @ wd
                         vd_ = (
                             Rt @ (_cross(wd, pstar) + _cross(w, _cross(w, pstar)) + vd)
-                            + 2 * _cross(Rt @ w, z0 * qd_k[j])
-                            + z0 * qdd_k[j]
+                            + 2 * _cross(Rt @ w, z0 * qd_physical[j])
+                            + z0 * qdd_physical[j]
                         )
                     # trailing underscore means new value, update here
                     w = w_
@@ -1757,17 +1768,21 @@ class DHRobot(Robot):
                 else:
                     if link.isrevolute:
                         # revolute axis
-                        wd = Rt @ (wd + z0 * qdd_k[j] + _cross(w, z0 * qd_k[j]))
-                        w = Rt @ (w + z0 * qd_k[j])
+                        wd = Rt @ (
+                            wd
+                            + z0 * qdd_physical[j]
+                            + _cross(w, z0 * qd_physical[j])
+                        )
+                        w = Rt @ (w + z0 * qd_physical[j])
                         vd = _cross(wd, pstar) + _cross(w, _cross(w, pstar)) + Rt @ vd
                     else:
                         # prismatic axis
                         w = Rt @ w
                         wd = Rt @ wd
                         vd = (
-                            Rt @ (z0 * qdd_k[j] + vd)
+                            Rt @ (z0 * qdd_physical[j] + vd)
                             + _cross(wd, pstar)
-                            + 2 * _cross(w, Rt @ z0 * qd_k[j])
+                            + 2 * _cross(w, Rt @ z0 * qd_physical[j])
                             + _cross(w, _cross(w, pstar))
                         )
 
@@ -1859,7 +1874,7 @@ class DHRobot(Robot):
                 # add joint inertia and friction
                 #  no Coulomb friction if model is symbolic
                 tau[k, j] = (
-                    t
+                    direction[j] * t
                     + link.G**2 * link.Jm * qdd_k[j]
                     - link.friction(qd_k[j], coulomb=not symbolic_call)
                 )

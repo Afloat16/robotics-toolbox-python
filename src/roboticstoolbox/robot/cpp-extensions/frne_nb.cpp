@@ -122,6 +122,7 @@ NB_MODULE(_frne_c, m) {
                 l->B   = L[idx++];
                 l->Tc[0] = L[idx++];
                 l->Tc[1] = L[idx++];
+                l->direction = L[idx++];
             }
             return obj;
         });
@@ -195,10 +196,10 @@ NB_MODULE(_frne_c, m) {
                     Link *l = &robot->links[j];
                     switch (l->jointtype) {
                     case REVOLUTE:
-                        rot_mat(l, qi[j] + l->offset, l->D, robot->dhtype);
+                        rot_mat(l, l->direction * qi[j] + l->offset, l->D, robot->dhtype);
                         break;
                     case PRISMATIC:
-                        rot_mat(l, l->theta, qi[j] + l->offset, robot->dhtype);
+                        rot_mat(l, l->theta, l->direction * qi[j] + l->offset, robot->dhtype);
                         break;
                     default:
                         throw nb::value_error("Invalid joint type (expect R or P)");

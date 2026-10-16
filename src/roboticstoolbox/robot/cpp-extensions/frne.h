@@ -46,6 +46,7 @@ typedef struct _link {
     double  D;          /* link length */
     double  theta;      /* link rotation angle */
     double  offset;     /* link coordinate offset */
+    double  direction;  /* signed physical coordinate per joint coordinate */
     Sigma jointtype;      /* axis type; revolute ('R') or prismatic ('P') */
 
     /**********************************************************

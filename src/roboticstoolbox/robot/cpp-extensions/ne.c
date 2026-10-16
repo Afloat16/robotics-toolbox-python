@@ -139,8 +139,8 @@ newton_euler (
 	    for (j = 0; j < robot->njoints; j++) {
 
 		/* create angular vector from scalar input */
-		qdv.z = qd[j*stride]; 
-		qddv.z = qdd[j*stride];
+		qdv.z = links[j].direction * qd[j*stride];
+		qddv.z = links[j].direction * qdd[j*stride];
 
 		switch (links[j].jointtype) {
 		case REVOLUTE:
@@ -247,8 +247,8 @@ newton_euler (
 	    for (j = 0; j < robot->njoints; j++) {
 
 		/* create angular vector from scalar input */
-		qdv.z = qd[j*stride]; 
-		qddv.z = qdd[j*stride];
+		qdv.z = links[j].direction * qd[j*stride];
+		qddv.z = links[j].direction * qdd[j*stride];
 
 		switch (links[j].jointtype) {
 		case REVOLUTE:
@@ -484,6 +484,7 @@ newton_euler (
 		/*
 		 * add actuator dynamics and friction
 		 */
+		t *= l->direction; /* virtual power maps the physical effort back */
 		t +=   l->G * l->G * l->Jm * qdd[j*stride]; // inertia
         t += l->G * l->G * l->B * qd[j*stride];    // viscous friction
         t += fabs(l->G) * (

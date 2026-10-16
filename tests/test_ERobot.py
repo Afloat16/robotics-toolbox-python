@@ -490,9 +490,10 @@ class TestERobot2(unittest.TestCase):
         nt.assert_almost_equal(J, a1)
 
     @unittest.skipUnless(_sympy, "sympy not installed")
-    def test_symdyn(self):
+    def test_symdyn(self) -> None:
+        import sympy as sp
 
-        a1, a2, r1, r2, m1, m2, g = symbols("a1 a2 r1 r2 m1 m2 g")
+        a1, r1, r2, m1, m2, g = symbols("a1 r1 r2 m1 m2 g")
         link1 = Link(ET.Ry(flip=True), m=m1, r=[r1, 0, 0], name="link0")
         link2 = Link(ET.tx(a1) * ET.Ry(flip=True), m=m2, r=[r2, 0, 0], name="link1")
         robot = ERobot([link1, link2])
@@ -502,14 +503,33 @@ class TestERobot2(unittest.TestCase):
         qdd = symbols("qdd:2")
         Q = robot.rne(q, qd, qdd, gravity=[0, 0, g], symbolic=True)
 
-        self.assertEqual(
-            str(Q[0]),
-            "a1**2*m2*qd0**2*sin(q1)*cos(q1) + a1*qd0*(-a1*m2*qd0*cos(q1) - m2*r2*(qd0 + qd1))*sin(q1) + g*m1*r1*cos(q0) + m1*qdd0*r1**2 + m2*r2**2*(qdd0 + qdd1) - m2*r2*(-a1*qd0*qd1*sin(q1) - a1*qdd0*cos(q1) + g*sin(q0)*sin(q1) - g*cos(q0)*cos(q1)) - (a1*sin(q1)**2 + a1*cos(q1)**2)*(m2*(a1*qd0*qd1*cos(q1) - a1*qdd0*sin(q1) - g*sin(q0)*cos(q1) - g*sin(q1)*cos(q0)) + (qd0 + qd1)*(-a1*m2*qd0*cos(q1) - m2*r2*(qd0 + qd1)))*sin(q1) - (a1*sin(q1)**2 + a1*cos(q1)**2)*(-a1*m2*qd0*(-qd0 - qd1)*sin(q1) - m2*r2*(qdd0 + qdd1) + m2*(-a1*qd0*qd1*sin(q1) - a1*qdd0*cos(q1) + g*sin(q0)*sin(q1) - g*cos(q0)*cos(q1)))*cos(q1)",
-        )
-        self.assertEqual(
-            str(Q[1]),
-            "a1**2*m2*qd0**2*sin(q1)*cos(q1) + a1*qd0*(-a1*m2*qd0*cos(q1) - m2*r2*(qd0 + qd1))*sin(q1) + m2*r2**2*(qdd0 + qdd1) - m2*r2*(-a1*qd0*qd1*sin(q1) - a1*qdd0*cos(q1) + g*sin(q0)*sin(q1) - g*cos(q0)*cos(q1))",
-        )
+        # Independent Euler-Lagrange equations from the point-mass positions.
+        # With Ry(-q), a positive coordinate raises the mass towards +z.
+        centres = [
+            (r1 * sp.cos(q[0]), r1 * sp.sin(q[0])),
+            (
+                a1 * sp.cos(q[0]) + r2 * sp.cos(q[0] + q[1]),
+                a1 * sp.sin(q[0]) + r2 * sp.sin(q[0] + q[1]),
+            ),
+        ]
+        kinetic = 0
+        potential = 0
+        for mass, centre in zip([m1, m2], centres):
+            velocity = [
+                sum(sp.diff(position, qi) * qdi for qi, qdi in zip(q, qd))
+                for position in centre
+            ]
+            kinetic += mass * sum(component**2 for component in velocity) / 2
+            potential -= mass * g * centre[1]
+        lagrangian = kinetic - potential
+        for index in range(2):
+            momentum = sp.diff(lagrangian, qd[index])
+            momentum_rate = sum(
+                sp.diff(momentum, qi) * qdi + sp.diff(momentum, qdi) * qddi
+                for qi, qdi, qddi in zip(q, qd, qdd)
+            )
+            expected = momentum_rate - sp.diff(lagrangian, q[index])
+            self.assertEqual(sp.trigsimp(sp.expand(Q[index] - expected)), 0)
 
 
 if __name__ == "__main__":  # pragma nocover

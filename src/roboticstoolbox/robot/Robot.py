@@ -1905,7 +1905,11 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
                     I_int = I_int + SpatialInertia(m=link.m, r=link.r, I=link.I)
 
                 if link.v is not None:
-                    s.append(link.v.s)  # type: ignore[attr-defined]  # ET, not ET2
+                    # A flipped coordinate moves along the negative physical
+                    # axis. Using its signed subspace in both recursions also
+                    # projects the resulting effort by virtual power.
+                    axis = link.v.s  # type: ignore[attr-defined]  # ET, not ET2
+                    s.append(-axis if link.v.isflip else axis)
                     past_joint = True
 
             I[i] = I_int

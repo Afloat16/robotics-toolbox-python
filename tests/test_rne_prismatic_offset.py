@@ -74,10 +74,10 @@ def test_prismatic_offset_python_matches_compiled_path(mdh: bool) -> None:
 
 @pytest.mark.skipif(not _C_AVAILABLE, reason="compiled _frne_c extension not built")
 @pytest.mark.parametrize("mdh", [False, True])
-def test_zero_offset_flipped_joint_preserves_existing_native_parity(mdh: bool) -> None:
-    # This offset fix must preserve existing zero-offset behaviour. General
-    # flipped-joint dynamics also require changes to velocity/effort signs and
-    # the compiled link representation, which are outside this regression.
+def test_zero_offset_flipped_joint_matches_point_mass_dynamics(mdh: bool) -> None:
+    # The point mass rotates at radius d + r_z = -0.6 + 0.2 = -0.4.
+    # T = m/2 * ((r_z-q2)**2 * qd1**2 + qd2**2), including its
+    # velocity-coupling terms, independently fixes the expected effort.
     if mdh:
         links = [
             rtb.RevoluteMDH(),
@@ -95,5 +95,12 @@ def test_zero_offset_flipped_joint_preserves_existing_native_parity(mdh: bool) -
 
     native = robot.rne(q, qd, qdd)
 
-    npt.assert_allclose(native, [1.088, -0.5576], atol=1e-13)
+    inertia = 1.7 * np.diag([(-q[1] + 0.2) ** 2, 1])
+    coupling = np.array(
+        [
+            2 * 1.7 * (q[1] - 0.2) * qd[0] * qd[1],
+            -1.7 * (q[1] - 0.2) * qd[0] ** 2,
+        ]
+    )
+    npt.assert_allclose(native, inertia @ qdd + coupling, atol=1e-13)
     npt.assert_allclose(robot.rne_python(q, qd, qdd), native, atol=1e-13)
