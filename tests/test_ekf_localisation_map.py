@@ -5,9 +5,10 @@ import numpy.testing as nt
 import pytest
 
 from roboticstoolbox import EKF, Bicycle, LandmarkMap, RangeBearingSensor
+from roboticstoolbox.tools.types import NDArray
 
 
-def observation(pose: np.ndarray, point: np.ndarray) -> np.ndarray:
+def observation(pose: NDArray, point: NDArray) -> NDArray:
     delta = point - pose[:2]
     angle = np.arctan2(delta[1], delta[0]) - pose[2]
     return np.array([np.linalg.norm(delta), np.arctan2(np.sin(angle), np.cos(angle))])
