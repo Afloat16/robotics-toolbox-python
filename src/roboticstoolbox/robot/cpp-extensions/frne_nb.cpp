@@ -86,6 +86,9 @@ NB_MODULE(_frne_c, m) {
         [](int njoints, int mdh,
            nb::ndarray<double> L_arr) -> std::unique_ptr<RobotObj>
         {
+            if (L_arr.size() != 25 * static_cast<size_t>(njoints)) {
+                throw nb::value_error("incompatible inverse-dynamics link data layout");
+            }
             auto obj = std::make_unique<RobotObj>();
 
             Robot *robot = (Robot *)PyMem_RawMalloc(sizeof(Robot));

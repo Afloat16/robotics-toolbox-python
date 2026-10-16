@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import numpy as np
 import numpy.testing as npt
 import pytest
 
@@ -47,3 +48,12 @@ def test_unavailable_extension_executes_correct_flipped_python_dynamics(
 
     npt.assert_allclose(robot.rne([0.2], [0], [0]), [-19.62], atol=1e-13)
     assert robot._frne is None
+
+
+@pytest.mark.skipif(not frne._C_AVAILABLE, reason="matching compiled _frne_c not built")
+@pytest.mark.parametrize("size", [24, 26])
+def test_new_native_abi_rejects_incompatible_packed_links(size: int) -> None:
+    from roboticstoolbox import _frne_c
+
+    with pytest.raises(ValueError, match="link data layout"):
+        _frne_c.init(1, 0, np.zeros(size))
