@@ -1272,10 +1272,11 @@ class IK_GN(IKSolver):
             \mat{W}_e
             \vec{e}_k
 
-        where :math:`\mat{J} = {^0\mat{J}}` is the base-frame manipulator Jacobian. If
-        :math:`\mat{J}(\vec{q}_k)` is non-singular, and :math:`\mat{W}_e = \mat{1}_n`, then
-        the above provides the pseudoinverse solution. However, if :math:`\mat{J}(\vec{q}_k)`
-        is singular, the above can not be computed and the GN solution is infeasible.
+        where :math:`\mat{J} = {^0\mat{J}}` is the base-frame manipulator Jacobian.
+        With ``pinv=True``, the weighted least-squares update uses the
+        pseudoinverse of :math:`\sqrt{\mat{W}_e}\mat{J}`. Otherwise the weighted
+        normal equations must be non-singular. Zero mask entries remove those
+        Cartesian coordinates from both the primary task and its null space.
         """
 
         Te = ets.eval(q)
@@ -1283,15 +1284,22 @@ class IK_GN(IKSolver):
 
         J = ets.jacob0(q)
 
+        # Weight the residual and Jacobian by the same metric used for E.
+        # Working with sqrt(We) retains the least-squares interpretation
+        # without squaring the Jacobian's condition number in the pinv path.
+        W = np.sqrt(self.We)
+        Jw = W @ J
+        ew = W @ e
+
         # Null-space motion
         qnull = _calc_qnull(
-            ets=ets, q=q, J=J, λΣ=self.kq, λm=self.km, ps=self.ps, pi=self.pi
+            ets=ets, q=q, J=Jw, λΣ=self.kq, λm=self.km, ps=self.ps, pi=self.pi
         )
 
         if self.pinv:
-            q[ets.jindices] += np.linalg.pinv(J) @ e + qnull
+            q[ets.jindices] += np.linalg.pinv(Jw) @ ew + qnull
         else:
-            q[ets.jindices] += np.linalg.inv(J) @ e + qnull
+            q[ets.jindices] += np.linalg.solve(Jw.T @ Jw, Jw.T @ ew) + qnull
 
         _, E = self.error(ets.eval(q), Tep)
         return E, q[ets.jindices]
