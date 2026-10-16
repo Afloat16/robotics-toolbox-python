@@ -427,7 +427,8 @@ class DstarPlanner(PlannerBase):
             ``animate`` and ``progress`` were accepted but had no effect.
 
         Compute the minimum-cost obstacle-free distance to the goal from all
-        points in the grid.
+        points in the grid. Each call starts a fresh search using the current
+        costmap; incremental sensor updates are handled by :meth:`query`.
         """
         for name, value in (("animate", animate), ("progress", progress is not True)):
             if value:
@@ -442,6 +443,12 @@ class DstarPlanner(PlannerBase):
 
         if self._goal is None:
             raise ValueError("No goal specified here or in constructor")
+
+        # A previous goal's closed states and back pointers are not a valid
+        # initial tree for a new shortest-path problem.
+        self._Map._Map = self._Map.init__Map()
+        self._Map.costmap = self.costmap * self._costgrid.cellsize
+        self._Dstar = _Dstar(self._Map, tol=self._Dstar.tol)
 
         c, r = self._costgrid.w2g(self._goal)
         goal_State = self._Map._Map[r][c]
