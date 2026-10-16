@@ -704,6 +704,7 @@ class DynamicsMixin:
             if not link.isjoint:
                 continue
             j = link.jindex
+            assert j is not None  # Actuated joints are indexed at construction.
             # compute inertia for this joint
             zero = np.zeros(self.n)
             qdd = np.zeros(self.n)
