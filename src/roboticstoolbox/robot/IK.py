@@ -671,8 +671,8 @@ def _null_Σ(ets: ETS, q: NDArray, ps: float, pi: ArrayLike | float) -> Any:
     # the influence distance
     Σ = np.zeros((ets.n, 1))
 
-    for i in range(ets.n):
-        qi = q[i]
+    for i, jindex in enumerate(ets.jindices):
+        qi = q[jindex]
         ql0 = ets.qlim[0, i]
         ql1 = ets.qlim[1, i]
 
