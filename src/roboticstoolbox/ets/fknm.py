@@ -150,16 +150,11 @@ def _python_jacob0(data: Any, n: Any, q: Any, tool: Any) -> Any:
     j = 0
     J = np.zeros((6, n), dtype="object")
     zero = np.array([0, 0, 0])
-    end = data[-1]
-
     for link in data:
         jindex = 0 if link.jindex is None and link.isjoint else link.jindex
 
         if link.isjoint:
             U = U @ link.A(q[jindex])
-
-            if link == end:
-                U = U @ tools
 
             Tu = SE3(U, check=False).inv().A @ T
             n_vec = U[:3, 0]
