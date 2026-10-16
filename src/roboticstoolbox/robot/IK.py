@@ -1520,12 +1520,10 @@ class IK_QP(IKSolver):
 
         # The inequality constraints for joint limit avoidance
         if self.kq > 0.0:
-            Ain = np.zeros((ets.n + 6, ets.n + 6))
-            bin = np.zeros(ets.n + 6)
-
-            # Form the joint limit velocity damper
-            Ain_l = np.zeros((ets.n, ets.n))
-            Bin_l = np.zeros(ets.n)
+            # Each joint can be in both influence regions simultaneously.
+            # Keep separate rows so neither limit overwrites the other.
+            Ain = np.zeros((2 * ets.n, ets.n + 6))
+            bin = np.zeros(2 * ets.n)
 
             for i, jindex in enumerate(ets.jindices):
                 ql0 = ets.qlim[0, i]
@@ -1533,15 +1531,14 @@ class IK_QP(IKSolver):
                 qi = q[jindex]
 
                 if ql1 - qi <= self.pi[i]:
-                    Bin_l[i] = ((ql1 - qi) - self.ps) / (self.pi[i] - self.ps)
-                    Ain_l[i, i] = 1
+                    bin[i] = ((ql1 - qi) - self.ps) / (self.pi[i] - self.ps)
+                    Ain[i, i] = 1
 
                 if qi - ql0 <= self.pi[i]:
-                    Bin_l[i] = -(((ql0 - qi) + self.ps) / (self.pi[i] - self.ps))
-                    Ain_l[i, i] = -1
+                    bin[ets.n + i] = -(((ql0 - qi) + self.ps) / (self.pi[i] - self.ps))
+                    Ain[ets.n + i, i] = -1
 
-            Ain[: ets.n, : ets.n] = Ain_l
-            bin[: ets.n] = (1.0 / self.kq) * Bin_l
+            bin *= 1.0 / self.kq
         else:
             Ain = None
             bin = None
