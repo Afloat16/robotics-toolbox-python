@@ -8,7 +8,9 @@ from roboticstoolbox.mobile.CurvaturePolyPlanner import solvepath, xcurvature
 
 @pytest.mark.parametrize("sign", [-1, 1])
 @pytest.mark.parametrize("length", [0.1, 1.0, 3.0])
-def test_interior_curvature_extremum_is_not_an_ode_sampling_estimate(sign, length):
+def test_interior_curvature_extremum_is_not_an_ode_sampling_estimate(
+    sign: int, length: float
+) -> None:
     # k(s) = sign * (1 - (2s/L - 1)^2), so |k| peaks at exactly 1 at L/2.
     coefficients = np.array([0, -4 / length**2, 4 / length, 0]) * sign
     parameters = np.r_[coefficients, length]
@@ -28,11 +30,13 @@ def test_interior_curvature_extremum_is_not_an_ode_sampling_estimate(sign, lengt
         ([4, -6, 0, 0], 0, 0),
     ],
 )
-def test_degenerate_polynomials_and_endpoints(coefficients, length, expected):
+def test_degenerate_polynomials_and_endpoints(
+    coefficients: list[int], length: float, expected: float
+) -> None:
     assert xcurvature(np.r_[coefficients, length]) == pytest.approx(expected)
 
 
-def test_maximum_curvature_is_independent_of_world_pose():
+def test_maximum_curvature_is_independent_of_world_pose() -> None:
     parameters = [0, -4, 4, 0, 1]
     _, origin_maximum = solvepath(parameters)
     _, moved_maximum = solvepath(parameters, q0=(1e4, -1e4, 2.3))
@@ -41,7 +45,7 @@ def test_maximum_curvature_is_independent_of_world_pose():
 
 
 @pytest.mark.parametrize("length", [0.1, 1.0, 3.0])
-def test_cubic_checks_both_interior_stationary_points(length):
+def test_cubic_checks_both_interior_stationary_points(length: float) -> None:
     # In normalized arc length: 6u^3 - 9u^2 + 3u has opposite extrema
     # at (3 +/- sqrt(3))/6, with equal magnitude sqrt(3)/6.
     parameters = [6 / length**3, -9 / length**2, 3 / length, 0, length]
