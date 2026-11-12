@@ -265,7 +265,8 @@ class RangeBearingSensor(SensorBase):
             defaults to None
         :type angle: float or array_like(2), optional
         :param plot: plot the map and a line to each observed landmark, defaults to False
-        :param seed: random number seed, defaults to 0
+        :param seed: random number seed, reused by :meth:`init`, defaults to 0;
+            None gives a fresh random stream on each reset
         :param kwargs: arguments passed to :class:`SensorBase`
 
         Sensor object that returns the range and bearing angle :math:`(r,
@@ -309,7 +310,7 @@ class RangeBearingSensor(SensorBase):
             plot = animate
 
         # call the superclass constructor
-        super().__init__(robot, map, **kwargs)
+        super().__init__(robot, map, seed=seed, **kwargs)
 
         self._line_style = line_style
         self._poly_style = poly_style
