@@ -106,9 +106,9 @@ def set_path(
 
     path.L = sum([abs(i) for i in lengths])
 
-    # Base.Test.@test path.L >= 0.01
-    if path.L >= 0.01:
-        paths.append(path)
+    # Short and stationary paths are valid candidates. A minimum-length
+    # cutoff can discard the optimum and select an unnecessary full turn.
+    paths.append(path)
 
     return paths
 
