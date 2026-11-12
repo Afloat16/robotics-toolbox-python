@@ -265,6 +265,8 @@ class _Dstar:
                 for i, item in enumerate(self.open_list):
                     if item[1] is _State:
                         del self.open_list[i]
+                        # Deleting an interior element shifts the heap entries.
+                        heapq.heapify(self.open_list)
                         break
 
             # _State.k = min(_State.k, h_new)
