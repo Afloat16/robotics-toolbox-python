@@ -179,11 +179,15 @@ def dubins_path_planning_from_origin(
     bt, bp, bq, best_mode = best
     lengths = [bt, bp, bq]
 
+    # Candidate lengths use the unit turning radius. Convert the requested
+    # world-distance spacing into that scale before sampling, then convert the
+    # reported segment lengths back to the coordinates' distance unit.
     x_list, y_list, yaw_list, directions = generate_local_course(
-        sum(lengths), lengths, best_mode, curvature, step_size
+        sum(lengths), lengths, best_mode, curvature, step_size * curvature
     )
+    lengths = [length / curvature for length in lengths]
 
-    return x_list, y_list, yaw_list, best_mode, best_cost, lengths
+    return x_list, y_list, yaw_list, best_mode, best_cost / curvature, lengths
 
 
 def interpolate(
