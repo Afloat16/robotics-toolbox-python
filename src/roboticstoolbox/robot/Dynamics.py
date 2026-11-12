@@ -988,8 +988,9 @@ class DynamicsMixin:
         :param pinv: use pseudo inverse rather than inverse (Default value = False)
         :param representation: the type of analytical Jacobian to use, default is
             ``'rpy/xyz'``
-        :param Ji: The inverse analytical Jacobian (base-frame)
-        :type Ji: ndarray(6,n)
+        :param Ji: The inverse analytical Jacobian (base-frame), reused for each
+            row when ``q`` is a trajectory
+        :type Ji: ndarray(n,6)
         :returns: The operational space inertia matrix
         :rtype: ndarray(6,6)
 
@@ -1016,7 +1017,7 @@ class DynamicsMixin:
         **Trajectory operation**
 
         If ``q`` is a matrix (m,n), each row is interpreted as a joint state
-        vector, and the result is a 3d-matrix (m,n,n) where each plane
+        vector, and the result is a 3d-matrix (m,6,6) where each plane
         corresponds to the Cartesian inertia for the corresponding
         row of ``q``.
 
@@ -1059,13 +1060,15 @@ class DynamicsMixin:
             Mt = np.zeros((q.shape[0], 6, 6))
 
             for k, qk in enumerate(q):
-                Ja = self.jacob0_analytical(qk, representation)
-                if pinv:
-                    Ji = np.linalg.pinv(Ja)
-                else:
-                    Ji = np.linalg.inv(Ja)
+                Jik = Ji
+                if Jik is None:
+                    Ja = self.jacob0_analytical(qk, representation)
+                    if pinv:
+                        Jik = np.linalg.pinv(Ja)
+                    else:
+                        Jik = np.linalg.inv(Ja)
                 M = self.inertia(qk)
-                Mt[k, :, :] = Ji.T @ M @ Ji
+                Mt[k, :, :] = Jik.T @ M @ Jik
 
             return Mt
 
