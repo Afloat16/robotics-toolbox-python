@@ -20,7 +20,7 @@ import numpy as np
 from spatialmath.base.types import ArrayLike2
 
 from roboticstoolbox.mobile.OccGrid import BinaryOccupancyGrid, OccupancyGrid
-from roboticstoolbox.mobile.PlannerBase import PlannerBase
+from roboticstoolbox.mobile.PlannerBase import NoPathError, PlannerBase
 from roboticstoolbox.tools.types import NDArray
 
 show_animation = True
@@ -494,6 +494,7 @@ class DstarPlanner(PlannerBase):
         :param verbose: display detailed diagnostic information about D* operations, defaults to False
         :return: path from start to goal, one point :math:`(x, y)` per row
         :rtype: ndarray(N,2)
+        :raises NoPathError: the goal is unreachable, including after sensor updates
 
         If ``sensor`` is None then the plan determined by the ``plan`` phase
         is used unaltered.
@@ -515,6 +516,8 @@ class DstarPlanner(PlannerBase):
         self.validate_start_goal(start)
         c, r = self._costgrid.w2g(start)
         start_State = self._Map._Map[r][c]
+        if not math.isfinite(start_State.h):
+            raise NoPathError("the goal is not reachable from this position")
         tmp = start_State
 
         if sensor is not None and not callable(sensor):
@@ -562,6 +565,11 @@ class DstarPlanner(PlannerBase):
                         val = self._Dstar.process__State(verbose=verbose)
                         # print('open set', len(self._Dstar.open_list))
                     # self._Dstar.showparents()
+                    if not math.isfinite(tmp.h):
+                        self.animation_end()
+                        raise NoPathError(
+                            "the goal is not reachable from this position"
+                        )
 
             assert tmp.parent is not None  # nosec B101: narrows the type for mypy
             tmp = tmp.parent
