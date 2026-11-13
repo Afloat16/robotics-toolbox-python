@@ -46,7 +46,7 @@ def dense_system(pg: PoseGraph) -> tuple[NDArray, NDArray, float]:
         H[sj, si] += Hij.T
         b[si, 0] += -A.T @ omega @ e
         b[sj, 0] += -B.T @ omega @ e
-        energy += np.inner(e, e)
+        energy += np.inner(e, omega @ e)
     H[:3, :3] += np.eye(3)
     return H, b, energy
 

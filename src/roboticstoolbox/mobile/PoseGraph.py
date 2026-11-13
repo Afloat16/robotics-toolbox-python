@@ -641,7 +641,7 @@ class PoseGraph:
 
         Each iteration solves the linearized least-squares problem for a
         correction to all the poses, which are updated in place.  Iteration
-        stops early if the total error does not decrease.
+        stops early if the total information-weighted error does not decrease.
 
         .. seealso:: :meth:`linearize_and_solve` :meth:`plot`
         """
@@ -700,8 +700,8 @@ class PoseGraph:
         """
         One iteration of pose graph optimization
 
-        :return: total cost, the sum of squared errors of all the edges, before
-            the poses are updated
+        :return: total cost, the sum of squared edge errors weighted by their
+            information matrices, before the poses are updated
 
         If the graph is ``verbose`` the cost and the time taken are printed.
 
@@ -758,7 +758,9 @@ class PoseGraph:
             b[islice, 0] += bi
             b[jslice, 0] += bj
 
-            etotal += np.inner(e, e)
+            # Use the same weighted objective as the normal equations and
+            # the convergence test in optimize.
+            etotal += np.inner(e, omega @ e)
 
         # Relative constraints leave a global translation and rotation free.
         # Anchor the first pose by adding an identity block to its diagonal.
