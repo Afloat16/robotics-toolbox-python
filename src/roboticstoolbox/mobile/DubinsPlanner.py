@@ -34,6 +34,10 @@ def left_straight_left(alpha: float, beta: float, d: float) -> _Segments:
     tmp0 = d + sa - sb
 
     mode = ["L", "S", "L"]
+    # Coincident turning circles have no unique straight-line tangent. Using
+    # atan2 on its roundoff-sized direction can add an unnecessary full turn.
+    if math.hypot(tmp0, cb - ca) <= 8 * math.ulp(max(1.0, d)):
+        return base.wrap_0_2pi(beta - alpha), 0.0, 0.0, mode
     p_squared = 2 + (d * d) - (2 * c_ab) + (2 * d * (sa - sb))
     if p_squared < 0:
         return None, None, None, mode
@@ -54,6 +58,9 @@ def right_straight_right(alpha: float, beta: float, d: float) -> _Segments:
 
     tmp0 = d - sa + sb
     mode = ["R", "S", "R"]
+    # As for LSL, a coincident pair reduces to a single circular arc.
+    if math.hypot(tmp0, ca - cb) <= 8 * math.ulp(max(1.0, d)):
+        return base.wrap_0_2pi(alpha - beta), 0.0, 0.0, mode
     p_squared = 2 + (d * d) - (2 * c_ab) + (2 * d * (sb - sa))
     if p_squared < 0:
         return None, None, None, mode
