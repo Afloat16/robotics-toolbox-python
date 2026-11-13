@@ -458,7 +458,8 @@ class VehicleBase(ABC):
 
         .. note:: This function requires previous velocity, ``v_prev`` to enable
             acceleration limiting.  This is passed as a reference to a mutable value,
-            a single-element list. This is reset to zero at the start of each simulation.
+            a single-element list, and updated to the returned, speed-limited value.
+            This is reset to zero at the start of each simulation.
         """
         # acceleration limit
         vp = v_prev[0]
@@ -467,11 +468,10 @@ class VehicleBase(ABC):
                 v = vp + self._accel_max * self._dt
             elif (v - vp) / self._dt < -self._accel_max:
                 v = vp - self._accel_max * self._dt
-        v_prev[0] = v
-
         # speed limit
         if self._speed_max is not None:
             v = np.clip(v, -self._speed_max, self._speed_max)
+        v_prev[0] = v
         return v
 
     def polygon(self, q: ArrayLike) -> Polygon2:
