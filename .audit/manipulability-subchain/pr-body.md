@@ -6,7 +6,7 @@ This changes results for previously misselected chains and omitted tool transfor
 
 A supplied full-robot Jacobian retains global joint order and its existing override behavior, independently of start/end arguments. A supplied shorter Jacobian uses the selected chain's joint order. Computed Jacobians always use the selected chain order, including reversed paths. The docstring states the distinction.
 
-Contribution owner: @Afloat16. This is an AI-assisted contribution; the required tool attribution is at the end.
+Contribution owner: @Afloat16.
 
 ## Related issue
 
@@ -14,22 +14,22 @@ Fixes #943. The issue was claimed before implementation.
 
 ## Validation
 
-Python 3.12.14, NumPy 2.5.5 and SpatialMath 1.1.19 on Linux, with native fknm/frne extensions.
+[Native baseline/candidate validation](https://github.com/Afloat16/robotics-toolbox-python/actions/runs/43961512696) compares unchanged base `cee0023535988e4ae9490c81d639a46f2311b8fd` with exact final source `c4e6e28d0fd748b46b4059faf52ed19f2b0e0048`. Both compiled extensions are verified present.
 
-- The initial 116 selected-chain/tool cases produce **93 failures and 23 passes** on unchanged base `cee00235`. Separately, all **48 DH compatibility controls** and **18 supplied-J compatibility controls** pass on that base.
-- Final commit `c4e6e28d0fd748b46b4059faf52ed19f2b0e0048`: the regression file has **194 cases**; together with existing Robot, DHRobot and PoERobot suites, **332 passed, 2 skipped**.
+- The complete new 194-case regression file reports **103 failed, 91 passed** on the unchanged base and **194 passed** on the final source.
+- The repository's canonical core command passes on both: base **2,479 passed, 19 skipped, 11 deselected, 254 subtests passed**; candidate **2,673 passed, 19 skipped, 11 deselected, 254 subtests passed**. The command retains the project's blocks exclusion and `not slow` selection. No additional dynamics or notebook exclusions were needed on these runners.
 - Geometric metrics are checked against the public Jacobian and determinant/SVD references. Asada tests use inverse dynamics for unit task accelerations to obtain an independent kinetic-energy reference, including reverse joint order, trajectories and nonidentity tools.
-- Independent final review verifies **12 full-robot supplied-J selections** exactly match the base and **12 selected-chain/axis combinations** match the inverse-dynamics reference. The preceding DH correction separately passes **24/24** independent tool cases.
-- The preceding commit `ad46a757` completes the core run with **2,642 passed, 15 skipped, 12 deselected and 254 subtests passed**. Observation of the final supplied-J revision's complete core rerun was interrupted by loss of the execution environment; its final outcome is unconfirmed. The 332-test result above is for the final code.
-- The new test file passes Ruff and formatting. At `ad46a757`, mypy reports exactly the same eight existing block-annotation errors as the base; its final rerun is unconfirmed.
+- Compatibility cases cover DH tools and explicit full-width Jacobians with start/end selections. A separate final source review also checked the full-J global-order contract.
+- Ruff and formatting pass for the new test file.
+- Advisory mypy reports the same **8 existing errors in 2 block modules**, checking 165 source files, on both base and candidate. Error messages match after normalizing source line numbers; there are no new type errors.
 
-The canonical full invocation was attempted. Both base and candidate hit the existing 50-second dynamics integration timeout. Baseline checks also reproduce the slow symbolic-IK timeout and four notebook animation setup errors caused by unavailable sandbox network interfaces. The core run excludes that integration case and notebook animation file, uses `not slow`, and retains the documented blocks exclusion. No unrestricted full-suite success is claimed.
+The successful core run is for the final source, including the supplied-J compatibility correction. It does not claim an unrestricted slow/block suite or a full operating-system matrix.
 
 ## Checklist
 
 - [x] Checked for competing work and claimed the issue.
 - [x] Conventional Commit title.
-- [ ] Unrestricted local test suite passes; limitations and exact tested revisions are stated above.
+- [x] The canonical core test command passes on the final source; its standard exclusions are stated above.
 - [x] Added regression and compatibility tests.
 - [x] New test code uses modern type annotations.
 - [x] Updated reST docstrings.
