@@ -1,0 +1,54 @@
+name: Validate manipulability subchain
+on:
+  push:
+    branches: [test/manipulability-subchain-validation-20261116]
+permissions:
+  contents: read
+jobs:
+  native-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [baseline, candidate]
+    env:
+      MPLBACKEND: Agg
+      QT_QPA_PLATFORM: offscreen
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Select the unchanged baseline source
+        if: matrix.kind == 'baseline'
+        run: |
+          git show cee0023535988e4ae9490c81d639a46f2311b8fd:src/roboticstoolbox/robot/Robot.py > src/roboticstoolbox/robot/Robot.py
+          git diff --exit-code cee0023535988e4ae9490c81d639a46f2311b8fd -- src
+      - name: Verify the exact candidate source
+        if: matrix.kind == 'candidate'
+        run: git diff --exit-code c4e6e28d0fd748b46b4059faf52ed19f2b0e0048 HEAD -- src tests
+      - name: Install native package and development dependencies
+        run: python -m pip install -e '.[dev]' mypy
+      - name: Verify both compiled extensions
+        run: |
+          python - <<'PY'
+          import platform,numpy,roboticstoolbox,spatialmath
+          from roboticstoolbox.ets.fknm import _C_AVAILABLE as fknm
+          from roboticstoolbox.robot.frne import _C_AVAILABLE as frne
+          assert fknm and frne, (fknm,frne)
+          print(platform.python_version(),numpy.__version__,roboticstoolbox.__file__)
+          PY
+      - name: Regression, canonical core, and type-check comparison
+        run: python .validation/validate_manipulability_subchain.py ${{ matrix.kind }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manipulability-${{ matrix.kind }}
+          path: .validation/manipulability-evidence/
