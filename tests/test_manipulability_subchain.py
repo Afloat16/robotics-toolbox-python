@@ -131,6 +131,8 @@ def test_dh_manipulability_applies_tool_once(
         (None, "panda_link6"),
         (None, "panda_link5"),
         ("panda_link2", None),
+        ("panda_link7", "panda_link0"),
+        ("panda_link6", "panda_link0"),
     ],
 )
 @pytest.mark.parametrize("axes", ["all", "trans", "rot"])
@@ -172,8 +174,19 @@ def test_asada_subchain_matches_inverse_dynamics(
             eigenvalues = np.linalg.eigvalsh((task_inertia + task_inertia.T) / 2)
             value = eigenvalues[0] / eigenvalues[-1]
         expected.append(value)
+        supplied_jacobian = jacobian
+        if jacobian.shape[1] == panda.n:
+            # A full-width precomputed Jacobian uses global joint columns,
+            # including when the selected chain runs in the reverse direction.
+            supplied_jacobian = np.empty_like(jacobian)
+            supplied_jacobian[:, panda.ets(start, end).jindices] = jacobian
         assert panda.manipulability(
-            row, J=jacobian, start=start, end=end, method="asada", axes=axes
+            row,
+            J=supplied_jacobian,
+            start=start,
+            end=end,
+            method="asada",
+            axes=axes,
         ) == pytest.approx(value)
 
     np.testing.assert_allclose(
@@ -184,3 +197,30 @@ def test_asada_subchain_matches_inverse_dynamics(
         rtol=1e-10,
         atol=1e-12,
     )
+
+
+@pytest.mark.parametrize(
+    "start,end",
+    [
+        (None, "panda_link6"),
+        ("panda_link2", None),
+        ("panda_link7", "panda_link0"),
+    ],
+)
+@pytest.mark.parametrize("axes", ["all", "trans", "rot"])
+@pytest.mark.parametrize("translated_tool", [False, True])
+def test_asada_preserves_full_robot_supplied_jacobian(
+    start: str | None, end: str | None, axes: str, translated_tool: bool
+) -> None:
+    panda = rtb.models.Panda()
+    for link in panda.links:
+        link.m = 1.0
+        link.I = np.eye(3) * 0.1
+    if translated_tool:
+        panda.tool = SE3.Trans(0.4, -0.2, 0.3) * SE3.RPY(0.2, -0.4, 0.7)
+    q = np.array([0.3, -0.5, 0.2, -1.8, -0.4, 1.4, 0.6])
+    jacobian = panda.jacob0(q)
+    expected = panda.manipulability(q, J=jacobian, method="asada", axes=axes)
+    assert panda.manipulability(
+        q, J=jacobian, start=start, end=end, method="asada", axes=axes
+    ) == pytest.approx(expected)

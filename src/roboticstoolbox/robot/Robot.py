@@ -1216,6 +1216,9 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
             using the "all" option
         - Asada's measure requires inertial a robot model with inertial
             parameters. For a selected subchain, unselected joints are held fixed.
+        - A supplied full-robot ``J`` uses global joint order, independently of
+            ``start`` and ``end``. A supplied subchain ``J`` uses the selected
+            chain's joint order.
 
         .. rubric:: References
 
@@ -1239,6 +1242,7 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
         """
 
         ets = self.ets(start, end)
+        supplied_jacobian = J is not None
 
         axes_list: list[bool] = []
 
@@ -1290,8 +1294,9 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
                 return 0
             Ji = np.linalg.pinv(J)
             M = robot.inertia(q)
-            joint_indices = ets.jindices
-            M = M[np.ix_(joint_indices, joint_indices)]
+            if not supplied_jacobian or J.shape[1] != robot.n:
+                joint_indices = ets.jindices
+                M = M[np.ix_(joint_indices, joint_indices)]
             Mx = Ji.T @ M @ Ji
             d = np.where(axes_list)[0]
             Mx = Mx[d]
