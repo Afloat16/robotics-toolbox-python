@@ -1172,6 +1172,8 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
 
         :param q: Joint coordinates, one of J or q required
         :param J: Jacobian in base frame if already computed, one of J or q required
+        :param end: the end link or gripper of the selected chain
+        :param start: the start link of the selected chain
         :param method: method to use, "yoshikawa" (default), "invcondition",
             "minsingular"  or "asada"
         :param axes: Task space axes to consider: "all" [default], "trans", or "rot"
@@ -1204,6 +1206,8 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
         .. rubric:: Notes
 
         - Invokes the ``jacob0`` method of the robot if ``J`` is not passed
+        - When computing ``J`` from ``q``, uses the selected start/end chain
+            and the robot's configured tool transform.
         - The "all" option includes rotational and translational
             dexterity, but this involves adding different units. It can be
             more useful to look at the translational and rotational
@@ -1211,7 +1215,7 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
         - Examples in the RVC book (1st edition) can be replicated by
             using the "all" option
         - Asada's measure requires inertial a robot model with inertial
-            parameters.
+            parameters. For a selected subchain, unselected joints are held fixed.
 
         .. rubric:: References
 
@@ -1234,7 +1238,7 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
 
         """
 
-        ets = self.ets(end, start)
+        ets = self.ets(start, end)
 
         axes_list: list[bool] = []
 
@@ -1285,7 +1289,10 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
             if np.linalg.matrix_rank(J) < 6:
                 return 0
             Ji = np.linalg.pinv(J)
-            Mx = Ji.T @ robot.inertia(q) @ Ji
+            M = robot.inertia(q)
+            joint_indices = ets.jindices
+            M = M[np.ix_(joint_indices, joint_indices)]
+            Mx = Ji.T @ M @ Ji
             d = np.where(axes_list)[0]
             Mx = Mx[d]
             Mx = Mx[:, d.tolist()]
@@ -1325,7 +1332,7 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
             w = np.zeros(q.shape[0])
 
             for k, qk in enumerate(q):
-                Jk = ets.jacob0(qk)
+                Jk = ets.jacob0(qk, tool=self.tool)
                 w[k] = mfunc(self, Jk, qk, axes_list)
 
         if len(w) == 1:
