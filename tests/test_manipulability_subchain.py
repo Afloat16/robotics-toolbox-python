@@ -86,6 +86,44 @@ def test_manipulability_gripper_asada_with_dynamic_parameters() -> None:
     ) == pytest.approx(expected)
 
 
+@pytest.mark.parametrize("model_name", ["Puma560", "Panda"])
+@pytest.mark.parametrize(
+    "method", ["yoshikawa", "invcondition", "minsingular", "asada"]
+)
+@pytest.mark.parametrize("axes", ["all", "trans", "rot"])
+@pytest.mark.parametrize("translated_tool", [False, True])
+def test_dh_manipulability_applies_tool_once(
+    model_name: str, method: str, axes: str, translated_tool: bool
+) -> None:
+    robot = getattr(rtb.models.DH, model_name)()
+    robot.base = SE3.Trans(-0.1, 0.2, 0.3) * SE3.RPY(0.2, 0.4, 0.3)
+    robot.tool = (
+        SE3.Trans(0.4, -0.2, 0.3) * SE3.RPY(0.2, -0.4, 0.7)
+        if translated_tool
+        else SE3()
+    )
+    q = robot.qr + np.linspace(0.1, 0.5, robot.n)
+    trajectory = np.stack([q, q + 0.1])
+    # Standard and modified DH expose independent geometric Jacobians. Their
+    # ETS already contains the tool, so passing it again changes these metrics.
+    expected = [
+        robot.manipulability(row, J=robot.jacob0(row), method=method, axes=axes)
+        for row in trajectory
+    ]
+    np.testing.assert_allclose(
+        robot.manipulability(q, method=method, axes=axes),
+        expected[0],
+        rtol=1e-10,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        robot.manipulability(trajectory, method=method, axes=axes),
+        expected,
+        rtol=1e-10,
+        atol=1e-12,
+    )
+
+
 @pytest.mark.parametrize(
     "start,end",
     [

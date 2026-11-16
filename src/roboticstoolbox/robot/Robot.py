@@ -1331,8 +1331,10 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
             q = np.array(getmatrix(q, (None, self.n)))
             w = np.zeros(q.shape[0])
 
+            # DHRobot.ets() already includes the configured tool transform.
+            tool = None if isinstance(self, rtb.DHRobot) else self.tool
             for k, qk in enumerate(q):
-                Jk = ets.jacob0(qk, tool=self.tool)
+                Jk = ets.jacob0(qk, tool=tool)
                 w[k] = mfunc(self, Jk, qk, axes_list)
 
         if len(w) == 1:
