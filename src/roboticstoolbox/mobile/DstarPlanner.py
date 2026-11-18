@@ -428,7 +428,8 @@ class DstarPlanner(PlannerBase):
             ``animate`` and ``progress`` were accepted but had no effect.
 
         Compute the minimum-cost obstacle-free distance to the goal from all
-        points in the grid.
+        points in the grid. Each call starts a new plan, retaining cost changes
+        reported by a sensor during earlier queries.
         """
         for name, value in (("animate", animate), ("progress", progress is not True)):
             if value:
@@ -443,6 +444,10 @@ class DstarPlanner(PlannerBase):
 
         if self._goal is None:
             raise ValueError("No goal specified here or in constructor")
+
+        # Costs and back-pointers from an earlier goal cannot seed a new plan.
+        self._Map._Map = self._Map.init__Map()
+        self._Dstar = _Dstar(self._Map)
 
         c, r = self._costgrid.w2g(self._goal)
         goal_State = self._Map._Map[r][c]

@@ -103,6 +103,47 @@ def test_dstar_sensor_uses_world_coordinates():
     assert planner._Map.costmap[4, 0] == 2
 
 
+@pytest.mark.parametrize("cellsize, origin", [(1, (0, 0)), (0.5, (10, 20))])
+def test_dstar_replan_uses_the_new_goal(
+    cellsize: float, origin: tuple[int, int]
+) -> None:
+    grid = OccupancyGrid(np.ones((6, 6)), cellsize=cellsize, origin=origin)
+    planner = DstarPlanner(grid)
+    planner.plan(grid.g2w((5, 5)))
+    planner.query(grid.g2w((0, 0)))
+
+    planner.plan(grid.g2w((0, 5)))
+    path, status = planner.query(grid.g2w((0, 0)))
+
+    nt.assert_allclose(path, np.c_[np.zeros(6), np.arange(6)] * cellsize + origin)
+    assert status.cost == pytest.approx(5 * cellsize)
+
+
+def test_dstar_replan_retains_sensed_costs() -> None:
+    grid = OccupancyGrid(np.ones((6, 6)), cellsize=0.5, origin=(10, 20))
+    planner = DstarPlanner(grid)
+    planner.plan(grid.g2w((5, 5)))
+    calls = 0
+
+    def sensor(position: tuple[float, float]) -> list[tuple[float, float, float]]:
+        nonlocal calls
+        calls += 1
+        return [(*grid.g2w((0, 2)), 10)] if calls == 1 else []
+
+    planner.query(grid.g2w((0, 0)), sensor=sensor)
+    planner.plan(grid.g2w((0, 5)))
+    path, status = planner.query(grid.g2w((0, 0)))
+
+    reference = DstarPlanner(
+        OccupancyGrid(planner.costmap.copy(), cellsize=0.5, origin=(10, 20))
+    )
+    reference.plan(grid.g2w((0, 5)))
+    expected_path, expected_status = reference.query(grid.g2w((0, 0)))
+    nt.assert_allclose(path, expected_path)
+    assert status.cost == pytest.approx(expected_status.cost)
+    assert planner._Map.costmap[2, 0] == 5
+
+
 def test_bug2_world_path_and_m_line(geometry):
     cellsize, origin = geometry
     grid = BinaryOccupancyGrid(floorplan(), cellsize=cellsize, origin=origin)
