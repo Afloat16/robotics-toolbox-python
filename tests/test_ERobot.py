@@ -481,6 +481,43 @@ class TestERobot2(unittest.TestCase):
         robot = rtb.models.ETS.Planar2()
         nt.assert_almost_equal(robot.base.A, sm.SE2().A)
 
+    def test_planar_base_constructor(self) -> None:
+        pose = sm.SE2(2, -3, 0.4)
+        ets = rtb.ET2.R() * rtb.ET2.tx(1)
+        q = [0.3]
+        expected = pose * ets.fkine(q)
+        for as_matrix in (False, True):
+            with self.subTest(as_matrix=as_matrix):
+                robot = rtb.Robot2(ets, base=pose.A if as_matrix else pose)
+                nt.assert_allclose(robot.base.A, pose.A)
+                nt.assert_allclose(robot.fkine(q).A, expected.A)
+                nt.assert_allclose(robot.fkine_all(q)[-1].A, expected.A)
+
+    def test_planar_base_setter(self) -> None:
+        pose = sm.SE2(-1, 2, -0.5)
+        ets = rtb.ET2.R() * rtb.ET2.tx(1)
+        q = [0.3]
+        expected = pose * ets.fkine(q)
+        for as_matrix in (False, True):
+            with self.subTest(as_matrix=as_matrix):
+                robot = rtb.Robot2(ets)
+                original_tool = robot._tool.copy()
+                robot.base = pose.A if as_matrix else pose
+                nt.assert_allclose(robot.base.A, pose.A)
+                nt.assert_allclose(robot.fkine(q).A, expected.A)
+                nt.assert_allclose(robot.fkine_all(q)[-1].A, expected.A)
+                nt.assert_array_equal(robot._tool, original_tool)
+                nt.assert_allclose(robot.base.A, pose.A)
+
+    def test_invalid_planar_base_preserves_pose(self) -> None:
+        robot = rtb.Robot2(rtb.ET2.R() * rtb.ET2.tx(1))
+        pose = sm.SE2(2, -3, 0.4)
+        robot.base = pose
+        for invalid in (np.zeros((3, 3)), sm.SE2([sm.SE2(), sm.SE2()])):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                robot.base = invalid
+            nt.assert_allclose(robot.base.A, pose.A)
+
     def test_jacobe(self):
         robot = rtb.models.ETS.Planar2()
         J = robot.jacobe(robot.qz)

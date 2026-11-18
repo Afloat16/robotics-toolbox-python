@@ -2267,26 +2267,26 @@ class Robot2(BaseRobot[Link2]):
         else:  # pragma nocover
             raise TypeError("constructor argument must be ETS2 or list of Link2")
 
+        # A planar base must not be passed to the 3D scene-node constructor.
+        base = kwargs.pop("base", None)
         super().__init__(links, **kwargs)
-
-        # Should just set it to None
-        self.base = SE2()  # override superclass
+        self.base = SE2() if base is None else base
 
     @property
     def base(self) -> SE2:
         """
         Get/set robot base transform
 
-        :returns: robot tool transform
+        :returns: robot base transform
 
         ``robot.base`` is the robot base transform
 
-        - ``robot.base = ...`` checks and sets the robot base transform
+        - ``robot.base = ...`` accepts a single ``SE2`` or a valid 3x3 matrix
 
         .. rubric:: Notes
 
         - The private attribute ``_base`` will be None in the case of
-            no base transform, but this property will return ``SE3()`` which
+            no base transform, but this property will return ``SE2()`` which
             is an identity matrix.
         """
         if self._base is None:  # type: ignore[has-type]  # pragma nocover
@@ -2299,9 +2299,13 @@ class Robot2(BaseRobot[Link2]):
     @base.setter
     def base(self, T: Any) -> None:
         if isinstance(T, SE2):
+            if len(T) != 1:
+                raise ValueError("base must be a single SE2, not a batch")
             self._base = T
-        elif SE2.isvalid(T):  # pragma nocover
-            self._tool = SE2(T, check=True)
+        elif SE2.isvalid(T):
+            self._base = SE2(T, check=True)
+        else:
+            raise ValueError("base must be an SE2 or a valid 3x3 matrix")
 
     def jacob0(self, q: Any, start: Any = None, end: Any = None) -> Any:
         return self.ets(start, end).jacob0(q)
@@ -2310,7 +2314,7 @@ class Robot2(BaseRobot[Link2]):
         return self.ets(start, end).jacobe(q)
 
     def fkine(self, q: Any, end: Any = None, start: Any = None) -> Any:
-        return self.ets(start, end).fkine(q)
+        return self.ets(start, end).fkine(q, base=self.base)
 
     @property
     def reach(self) -> float:
