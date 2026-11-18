@@ -228,6 +228,8 @@ class PoERobot(Robot):
         :type q: array_like(n)
         :return: end effector pose
         :rtype: SE3
+
+        The returned pose includes the robot's base and tool transforms.
         """
         T = None
         for i in range(self.n):
@@ -236,26 +238,28 @@ class PoERobot(Robot):
             else:
                 T *= self.links[i + 1].S.exp(q[i])
 
-        return T * self.T0
+        return self.base * T * self.T0 * self.tool
 
         # T = reduce(lambda x, y: x * y,
         #           [link.A(qk) for link, qk in zip(self, q)])
 
     def jacob0(self, q: Any) -> Any:  # type: ignore[override]
         """
-        Jacobian in world frame
+        Jacobian in robot base frame
 
         :param q: joint configuration
         :type q: array_like(n)
         :return: Jacobian matrix
         :rtype: ndarray(6,n)
+
+        The velocity is evaluated at the end of the robot's tool transform.
         """
         columns = []
         T = SE3()
         for i in range(self.n):
             columns.append(T.Ad() @ self.links[i + 1].S.S)
             T *= self.links[i + 1].S.exp(q[i])
-        T *= self.T0
+        T *= self.T0 * self.tool
         J = np.column_stack(columns)
 
         # convert Jacobian from velocity twist to spatial velocity
@@ -271,13 +275,15 @@ class PoERobot(Robot):
         :type q: array_like(n)
         :return: Jacobian matrix
         :rtype: ndarray(6,n)
+
+        The end-effector frame includes the robot's tool transform.
         """
         columns = []
         T = SE3()
         for i in range(self.n):
             columns.append(T.Ad() @ self.links[i + 1].S.S)
             T *= self.links[i + 1].S.exp(q[i])
-        T *= self.T0
+        T *= self.T0 * self.tool
         J = np.column_stack(columns)
 
         # convert velocity twist from world frame to EE frame

@@ -11,6 +11,27 @@ from spatialmath.base import trnorm
 
 
 class TestPoERobot(unittest.TestCase):
+    def test_base_and_tool_transforms(self) -> None:
+        base = SE3.Trans(1, -2, 0.5) * SE3.RPY(0.2, -0.3, 0.4)
+        tool = SE3.Trans(0.2, -0.1, 0.3) * SE3.RPY(-0.2, 0.3, -0.4)
+        q = [0.5, 0.2]
+
+        for robot_base, robot_tool in ((base, SE3()), (SE3(), tool), (base, tool)):
+            robot = PoERobot(
+                [PoERevolute([0, 0, 1], [0, 0, 0]), PoEPrismatic([1, 0, 0])],
+                SE3.Tx(1),
+                base=robot_base,
+                tool=robot_tool,
+            )
+            converted = Robot(robot.ets(), base=robot_base, tool=robot_tool)
+            for method in ("fkine", "jacob0", "jacobe"):
+                with self.subTest(base=robot_base, tool=robot_tool, method=method):
+                    actual = getattr(robot, method)(q)
+                    expected = getattr(converted, method)(q)
+                    if method == "fkine":
+                        actual, expected = actual.A, expected.A
+                    nt.assert_allclose(actual, expected, atol=1e-12)
+
     def test_poe2ets_conversion(self):
         # 2RPR standard structure
         link1 = PoERevolute([0, 0, 1], [0, 0, 0])
